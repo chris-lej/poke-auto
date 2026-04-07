@@ -125,7 +125,7 @@ Produce a single “readiness packet” (in `Execution Notes` and/or a non-commi
 
 ### T01 — Validate or create repository access context
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 The MVP assumes a GitHub remote exists and the agent can push. This task verifies remotes, branch tracking, and permissions so later commits are not blocked by surprise auth issues.
@@ -160,13 +160,15 @@ Confirmed read/write access to the intended GitHub repository from this environm
 
 **Execution Notes:**
 
--
+- `origin` → `github.com/chris-lej/poke-auto` (HTTPS); read/write verified via successful `git fetch origin` and prior pushes to `origin/master`.
+- Working branch: **`master`** (tracks `origin/master`), aligned with T00 readiness packet (long-lived primary branch).
+- Repository is **`poke-auto`** / `chris-lej/poke-auto`, not the default name `pokemon-restock-notifier`.
 
 ---
 
 ### T02 — Create repository operating files
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 A small set of repo-level files prevents accidental commits of secrets and local artifacts, and gives humans a fast on-ramp. This keeps maintenance low for a personal tool.
@@ -199,13 +201,14 @@ Repository hygiene files exist: ignore rules for Node, env files, local database
 
 **Execution Notes:**
 
--
+- Root `.gitignore`: Node, `.env`, `data/*.db` / sqlite, Playwright reports, `dist/`, logs, OS junk.
+- `.env.example`: **comma-separated** `PRODUCT_URLS` and `DISCOVERY_SEED_URLS` (documented for T05).
 
 ---
 
 ### T03 — Bootstrap Node.js and TypeScript project
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 The stack is Node.js + TypeScript + Playwright. This task establishes package metadata, TypeScript compilation, and scripts so subsequent tasks add code in a consistent toolchain.
@@ -241,13 +244,15 @@ A minimal `package.json`, TypeScript config, and installable dependencies (inclu
 
 **Execution Notes:**
 
--
+- `package.json`: npm, `type: module`, Node ≥20, scripts `build` / `start` / `typecheck`, dependency `playwright@1.59.1`, dev `typescript` + `@types/node`.
+- `tsconfig.json`: `strict`, `outDir` `dist`, `rootDir` `src`, NodeNext modules.
+- `.nvmrc`: `20`. After install, run `npx playwright install` for browsers when needed.
 
 ---
 
 ### T04 — Create folder structure
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Clear folders reduce coupling and make autonomous edits safer. The structure should reflect boundaries: config, persistence, browser, domain, notifications, orchestration.
@@ -280,13 +285,13 @@ A documented src layout exists (directories and placeholder `index`/barrel files
 
 **Execution Notes:**
 
--
+- Created `src/config`, `src/db`, `src/domain`, `src/browser`, `src/evaluators`, `src/notifications`, `src/workers`, `src/app` with minimal placeholder modules; DB file path remains `./data/restock.db` (created by app in T06).
 
 ---
 
 ### T05 — Implement typed configuration and validation
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Scattered `process.env` reads become inconsistent and leak partial failures. Centralized, validated configuration fails fast at startup with understandable errors — critical for unattended runs.
@@ -322,7 +327,11 @@ A single configuration module loads from environment variables, validates types 
 
 **Execution Notes:**
 
--
+- Implemented `src/config/loadConfig.ts` + `src/config/index.ts`: `loadConfig()` / `getConfig()`, typed `AppConfig`.
+- Production path requires `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and at least one URL in comma-separated `PRODUCT_URLS`.
+- `DRY_RUN=true` relaxes Telegram and product URL requirements for tooling.
+- Defaults: `DATABASE_PATH=./data/restock.db`, `POLL_INTERVAL_SECONDS=300`, `DISCOVERY_ENABLED=false`; discovery on requires non-empty `DISCOVERY_SEED_URLS`.
+- No `process.env` reads outside this module; secrets are not logged.
 
 ---
 

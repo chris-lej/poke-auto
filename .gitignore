@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Local data and databases
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# Logs (if stored under repo)
+logs/
+*.log
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Build output
+dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# TypeScript
+*.tsbuildinfo
