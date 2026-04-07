@@ -62,7 +62,7 @@ What must be achieved
 
 ### T00 — Preflight validation and readiness packet
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Autonomous runs fail most often when secrets, URLs, or repo assumptions are missing or wrong. This task front-loads every likely input into **one** structured request so later tasks rarely need to stop for clarification. It also confirms defaults align with a local-first, personal MVP.
@@ -105,7 +105,21 @@ Produce a single “readiness packet” (in `Execution Notes` and/or a non-commi
 
 **Execution Notes:**
 
--
+**Readiness packet (T00 — consolidated assumptions and pending inputs)**
+
+| Item | Value / status |
+|------|----------------|
+| **GitHub repository** | `chris-lej/poke-auto` (from `origin` URL; not the default name `pokemon-restock-notifier`) |
+| **Repository visibility** | Assumed **private** (not verifiable from git alone) |
+| **Telegram bot token** | **Pending** — must come from BotFather; store only in environment / secret manager, never in git |
+| **Telegram chat ID** | **Pending** — store only via env |
+| **Product URLs** | **Pending** — MVP needs at least one URL in env before meaningful monitoring; default empty until supplied |
+| **Optional discovery seed URLs** | None (default) |
+| **Discovery enabled** | **false** — remains off until Phase 3 optional work (per task default) |
+| **Preferred git branch for ongoing work** | `cursor/next-todo-task-d5ed` (current agent branch); `main` exists as base |
+| **SQLite database file path** | `./data/restock.db` (directory to be created in later tasks) |
+
+**Alignment with `PROJECT.md`:** Confirmed scope: personal restock notifier only; no autobuy, no CAPTCHA/bot evasion, no proxy rotation or distributed infra, no dashboard. No secrets written to tracked files.
 
 ---
 
