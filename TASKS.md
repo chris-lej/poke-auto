@@ -80,7 +80,7 @@ Produce a single “readiness packet” (in `Execution Notes` and/or a non-commi
   - **Product URLs** — list of Pokémon Center product page URLs to monitor; default: empty until provided (MVP needs at least one before meaningful monitoring).
   - **Optional discovery seed URLs** — default: none.
   - **Whether discovery is enabled** — default: **false** (must stay off until Phase 3 optional task).
-  - **Preferred git branch name** for ongoing work — default: use current tracked branch or `main` if unspecified.
+  - **Preferred git branch name** for ongoing work — default: use current tracked branch or `main` if unspecified. **This repo:** long-lived `master` (primary integration branch; avoids auto-merge constraints on `main`).
   - **Preferred SQLite database file path** — default: `./data/restock.db` (directory created in later tasks).
 - Document agreed defaults for anything not supplied, explicitly marking assumptions.
 - Confirm alignment with `PROJECT.md` non-goals (no autobuy, no CAPTCHA bypass, no proxy rotation, no distributed infra, no dashboard).
@@ -116,7 +116,7 @@ Produce a single “readiness packet” (in `Execution Notes` and/or a non-commi
 | **Product URLs** | **Pending** — MVP needs at least one URL in env before meaningful monitoring; default empty until supplied |
 | **Optional discovery seed URLs** | None (default) |
 | **Discovery enabled** | **false** — remains off until Phase 3 optional work (per task default) |
-| **Preferred git branch for ongoing work** | `cursor/next-todo-task-d5ed` (current agent branch); `main` exists as base |
+| **Preferred git branch for ongoing work** | **`master`** — long-lived primary branch for ongoing work and agent pushes; `main` remains on origin as historical/default unless you change default branch in GitHub settings |
 | **SQLite database file path** | `./data/restock.db` (directory to be created in later tasks) |
 
 **Alignment with `PROJECT.md`:** Confirmed scope: personal restock notifier only; no autobuy, no CAPTCHA/bot evasion, no proxy rotation or distributed infra, no dashboard. No secrets written to tracked files.
