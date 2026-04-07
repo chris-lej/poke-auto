@@ -47,24 +47,14 @@ function classifyFromText(lower: string): {
 }
 
 /**
- * Evaluates a Pokémon Center–style product page already loaded in `page`.
+ * Pure evaluation from visible page text (fixtures / tests / same rules as Playwright path).
  */
-export async function evaluatePokemonCenterProductPage(page: Page): Promise<PageEvaluation> {
-  const capturedAt = new Date();
-  let bodyText = "";
-  try {
-    await page.waitForLoadState("domcontentloaded", { timeout: 45_000 });
-    bodyText = normalizeWhitespace((await page.locator("body").innerText()).slice(0, SNIPPET_MAX_LEN));
-  } catch {
-    return {
-      status: "unknown",
-      reason: "page_load_or_content_failed",
-      pageHash: hashCanonical(""),
-      capturedAt,
-    };
-  }
-
-  const lower = bodyText.toLowerCase();
+export function evaluatePokemonCenterFromBodyText(
+  bodyText: string,
+  capturedAt: Date = new Date(),
+): PageEvaluation {
+  const normalized = normalizeWhitespace(bodyText).slice(0, SNIPPET_MAX_LEN);
+  const lower = normalized.toLowerCase();
 
   if (
     lower.includes("access denied") ||
@@ -74,7 +64,7 @@ export async function evaluatePokemonCenterProductPage(page: Page): Promise<Page
     return {
       status: "blocked",
       reason: "possible_gate_or_bot_challenge",
-      pageHash: hashCanonical(bodyText),
+      pageHash: hashCanonical(normalized),
       capturedAt,
     };
   }
@@ -83,7 +73,27 @@ export async function evaluatePokemonCenterProductPage(page: Page): Promise<Page
   return {
     status,
     reason,
-    pageHash: hashCanonical(bodyText),
+    pageHash: hashCanonical(normalized),
     capturedAt,
   };
+}
+
+/**
+ * Evaluates a Pokémon Center–style product page already loaded in `page`.
+ */
+export async function evaluatePokemonCenterProductPage(page: Page): Promise<PageEvaluation> {
+  const capturedAt = new Date();
+  let bodyText = "";
+  try {
+    await page.waitForLoadState("domcontentloaded", { timeout: 45_000 });
+    bodyText = await page.locator("body").innerText();
+  } catch {
+    return {
+      status: "unknown",
+      reason: "page_load_or_content_failed",
+      pageHash: hashCanonical(""),
+      capturedAt,
+    };
+  }
+  return evaluatePokemonCenterFromBodyText(bodyText, capturedAt);
 }

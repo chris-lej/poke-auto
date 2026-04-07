@@ -1,3 +1,6 @@
 /** Product page evaluation. */
 
-export { evaluatePokemonCenterProductPage } from "./pokemonCenterProduct.js";
+export {
+  evaluatePokemonCenterFromBodyText,
+  evaluatePokemonCenterProductPage,
+} from "./pokemonCenterProduct.js";

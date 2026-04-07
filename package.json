@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/app/main.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",

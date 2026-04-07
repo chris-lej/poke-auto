@@ -586,7 +586,7 @@ Given a product URL and a Playwright page, return a `PageEvaluation` with normal
 
 **Execution Notes:**
 
-- `evaluatePokemonCenterProductPage(page)` in `src/evaluators/pokemonCenterProduct.ts`: waits for `domcontentloaded`, reads trimmed `body` inner text (capped length), classifies via simple sold-out vs add-to-cart string hints, `unknown` on conflict/missing signals, `blocked` on obvious gate phrases; `pageHash` = sha256 of canonical snippet (comment explains vs full HTML).
+- `evaluatePokemonCenterProductPage(page)` in `src/evaluators/pokemonCenterProduct.ts`: waits for `domcontentloaded`, reads `body` inner text; `evaluatePokemonCenterFromBodyText` shares the same rules for fixtures/tests; `pageHash` = sha256 of canonical snippet (comment explains vs full HTML). `npm test` runs fixture assertions on compiled output.
 
 ---
 
