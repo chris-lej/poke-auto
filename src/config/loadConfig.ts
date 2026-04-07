@@ -17,6 +17,11 @@ export type AppConfig = {
   discoverySeedUrls: string[];
   playwrightHeaded: boolean;
   logLevel: LogLevel;
+  /**
+   * After an in-stock alert, suppress further in-stock alerts for the same product
+   * for this many seconds (reduces hash/signal flip-flop noise). 0 = off.
+   */
+  alertDebounceSeconds: number;
 };
 
 function parseBool(raw: string | undefined, defaultValue: boolean): boolean {
@@ -38,6 +43,15 @@ function parsePositiveInt(raw: string | undefined, name: string, defaultValue: n
   const n = Number.parseInt(raw, 10);
   if (!Number.isFinite(n) || n < 1) {
     throw new Error(`Invalid ${name}: expected positive integer, got "${raw}"`);
+  }
+  return n;
+}
+
+function parseNonNegativeInt(raw: string | undefined, name: string, defaultValue: number): number {
+  if (raw === undefined || raw.trim() === "") return defaultValue;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new Error(`Invalid ${name}: expected non-negative integer, got "${raw}"`);
   }
   return n;
 }
@@ -79,6 +93,11 @@ export function loadConfig(): AppConfig {
   const discoveryEnabled = parseBool(process.env.DISCOVERY_ENABLED, false);
   const playwrightHeaded = parseBool(process.env.PLAYWRIGHT_HEADED, false);
   const logLevel = parseLogLevel(process.env.LOG_LEVEL, "info");
+  const alertDebounceSeconds = parseNonNegativeInt(
+    process.env.ALERT_DEBOUNCE_SECONDS,
+    "ALERT_DEBOUNCE_SECONDS",
+    0,
+  );
 
   const productUrls = parseCommaSeparatedList(process.env.PRODUCT_URLS);
   const discoverySeedUrls = parseCommaSeparatedList(process.env.DISCOVERY_SEED_URLS);
@@ -113,6 +132,7 @@ export function loadConfig(): AppConfig {
     discoverySeedUrls,
     playwrightHeaded,
     logLevel,
+    alertDebounceSeconds,
   };
 }
 

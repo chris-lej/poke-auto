@@ -333,6 +333,7 @@ A single configuration module loads from environment variables, validates types 
 - Defaults: `DATABASE_PATH=./data/restock.db`, `POLL_INTERVAL_SECONDS=300`, `DISCOVERY_ENABLED=false`; discovery on requires non-empty `DISCOVERY_SEED_URLS`.
 - No `process.env` reads outside this module; secrets are not logged.
 - `LOG_LEVEL`: `debug` | `info` | `warn` | `error` (default `info`).
+- `ALERT_DEBOUNCE_SECONDS`: non-negative integer (default `0`) — used by alert decision in T13+.
 
 ---
 
@@ -594,7 +595,7 @@ Given a product URL and a Playwright page, return a `PageEvaluation` with normal
 
 ### T12 — Implement Telegram notification service
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Telegram is the MVP alert channel. A dedicated service isolates HTTP calls, formatting, and failure handling from monitoring logic.
@@ -628,13 +629,14 @@ Send a formatted message to the configured chat using Bot API via `fetch` or min
 
 **Execution Notes:**
 
--
+- `createTelegramNotifier(config)` in `src/notifications/telegram.ts`: `sendAlert`, `sendStockAlert` (URL, status, reason, ISO time); POST JSON to `sendMessage`; errors throw with redacted body snippet — **never** log full API URL (token).
+- Harness: `npm run telegram:test` → `dist/scripts/telegramTest.js` (requires real `.env` / env vars; not run in CI).
 
 ---
 
 ### T13 — Implement alert decision logic
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Alert fatigue breaks trust. Alerts should fire only on meaningful transitions (e.g. `out_of_stock` → `in_stock` or `unknown` → `in_stock` per agreed policy), and duplicates should be suppressed using persisted state.
@@ -668,13 +670,13 @@ Pure function or small service that, given previous normalized status (nullable 
 
 **Execution Notes:**
 
--
+- `decideAlert` in `src/domain/alertDecision.ts`: alert only when `evaluation.status === in_stock` and prior is not `in_stock` (including first run); `unknown`/`blocked`/`out_of_stock` → `in_stock` all alert. Optional `ALERT_DEBOUNCE_SECONDS` suppresses repeat in-stock alerts using `last_alerted_at`. Table tests: `tests/alert-decision.test.mjs`.
 
 ---
 
 ### T14 — Implement monitor worker
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 The monitor worker ties together browser, evaluator, persistence, and alert decisioning for each product URL on each tick.
@@ -710,13 +712,13 @@ For each product: fetch page, evaluate, write history + current status, invoke T
 
 **Execution Notes:**
 
--
+- `runMonitorTick` in `src/workers/monitorWorker.ts`: loads all DB products, `page.goto` + `evaluatePokemonCenterProductPage` inside `withPage`. If status+reason+hash unchanged vs `product_status`, only `touchLastChecked` (no duplicate history). Else `recordStatusSnapshot` then `decideAlert`; on send failure logs error and **does not** call `setLastAlertedAt`. Dry run / no Telegram: logs “would send” and skips send. Per-product try/catch.
 
 ---
 
 ### T15 — Implement product seeding from config
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Products must exist in SQLite before monitoring loops are meaningful. Seeding from env keeps MVP simple without a UI.
@@ -750,13 +752,13 @@ On startup (or explicit command), upsert all configured product URLs into `produ
 
 **Execution Notes:**
 
--
+- `seedProductsFromConfig` in `src/workers/seedProducts.ts`: upserts each `config.productUrls` URL; **does not** delete rows removed from env (documented in file comment).
 
 ---
 
 ### T16 — Implement app entrypoint and scheduler
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Local-first execution needs a single command that runs forever on a schedule (or cron-friendly single-shot mode if chosen — pick one primary model and document).
@@ -790,7 +792,8 @@ Running one documented command starts the monitor loop at the configured interva
 
 **Execution Notes:**
 
--
+- `src/app/main.ts`: `initDatabase` → `runMonitorTick` loop with **interval = poll interval minus tick duration** (drift acceptable); sleep in 1s slices for responsive SIGINT/SIGTERM; `browser.close()` + `db.close()` in `finally`. Scripts: `npm start`, `npm run dev` (build+start).
+- Logger uses explicit `createLogger` from config (not `getLogger` singleton) so log level matches startup config.
 
 ---
 

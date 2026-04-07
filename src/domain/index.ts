@@ -6,3 +6,4 @@ export {
   NORMALIZED_STOCK_STATUSES,
 } from "./stockStatus.js";
 export type { PageEvaluation } from "./pageEvaluation.js";
+export { decideAlert, type AlertDecision } from "./alertDecision.js";

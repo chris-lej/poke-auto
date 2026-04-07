@@ -10,6 +10,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/app/main.js",
+    "dev": "tsc && node dist/app/main.js",
+    "telegram:test": "npm run build && node dist/scripts/telegramTest.js",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test tests/*.test.mjs"
   },

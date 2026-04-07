@@ -68,6 +68,12 @@ export function createProductRepository(db: Database.Database) {
     WHERE product_id = @product_id
   `);
 
+  const updateLastChecked = db.prepare<{ product_id: number; last_checked_at: string }>(`
+    UPDATE product_status
+    SET last_checked_at = @last_checked_at
+    WHERE product_id = @product_id
+  `);
+
   function upsertProductByUrl(url: string, title: string | null = null): number {
     const now = new Date().toISOString();
     const row = upsertProduct.get({
@@ -124,12 +130,26 @@ export function createProductRepository(db: Database.Database) {
     }
   }
 
+  /** Bumps `last_checked_at` when the evaluation matches the stored snapshot (no history row). */
+  function touchLastChecked(productId: number, at: Date = new Date()): void {
+    const info = updateLastChecked.run({
+      product_id: productId,
+      last_checked_at: at.toISOString(),
+    });
+    if (info.changes === 0) {
+      throw new Error(
+        `touchLastChecked: no product_status row for product_id ${productId} — record a snapshot first`,
+      );
+    }
+  }
+
   return {
     upsertProductByUrl,
     getAllProducts,
     getProductStatus,
     recordStatusSnapshot,
     setLastAlertedAt,
+    touchLastChecked,
   };
 }
 
