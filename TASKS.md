@@ -62,7 +62,7 @@ What must be achieved
 
 ### T00 — Preflight validation and readiness packet
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Autonomous runs fail most often when secrets, URLs, or repo assumptions are missing or wrong. This task front-loads every likely input into **one** structured request so later tasks rarely need to stop for clarification. It also confirms defaults align with a local-first, personal MVP.
@@ -80,7 +80,7 @@ Produce a single “readiness packet” (in `Execution Notes` and/or a non-commi
   - **Product URLs** — list of Pokémon Center product page URLs to monitor; default: empty until provided (MVP needs at least one before meaningful monitoring).
   - **Optional discovery seed URLs** — default: none.
   - **Whether discovery is enabled** — default: **false** (must stay off until Phase 3 optional task).
-  - **Preferred git branch name** for ongoing work — default: use current tracked branch or `main` if unspecified.
+  - **Preferred git branch name** for ongoing work — default: use current tracked branch or `main` if unspecified. **This repo:** long-lived `master` (primary integration branch; avoids auto-merge constraints on `main`).
   - **Preferred SQLite database file path** — default: `./data/restock.db` (directory created in later tasks).
 - Document agreed defaults for anything not supplied, explicitly marking assumptions.
 - Confirm alignment with `PROJECT.md` non-goals (no autobuy, no CAPTCHA bypass, no proxy rotation, no distributed infra, no dashboard).
@@ -105,13 +105,27 @@ Produce a single “readiness packet” (in `Execution Notes` and/or a non-commi
 
 **Execution Notes:**
 
--
+**Readiness packet (T00 — consolidated assumptions and pending inputs)**
+
+| Item | Value / status |
+|------|----------------|
+| **GitHub repository** | `chris-lej/poke-auto` (from `origin` URL; not the default name `pokemon-restock-notifier`) |
+| **Repository visibility** | Assumed **private** (not verifiable from git alone) |
+| **Telegram bot token** | **Pending** — must come from BotFather; store only in environment / secret manager, never in git |
+| **Telegram chat ID** | **Pending** — store only via env |
+| **Product URLs** | **Pending** — MVP needs at least one URL in env before meaningful monitoring; default empty until supplied |
+| **Optional discovery seed URLs** | None (default) |
+| **Discovery enabled** | **false** by default; set `DISCOVERY_ENABLED=true` + `DISCOVERY_SEED_URLS` to scrape listing pages each tick (T17) |
+| **Preferred git branch for ongoing work** | **`master`** — long-lived primary branch for ongoing work and agent pushes; `main` remains on origin as historical/default unless you change default branch in GitHub settings |
+| **SQLite database file path** | `./data/restock.db` (directory to be created in later tasks) |
+
+**Alignment with `PROJECT.md`:** Confirmed scope: personal restock notifier only; no autobuy, no CAPTCHA/bot evasion, no proxy rotation or distributed infra, no dashboard. No secrets written to tracked files.
 
 ---
 
 ### T01 — Validate or create repository access context
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 The MVP assumes a GitHub remote exists and the agent can push. This task verifies remotes, branch tracking, and permissions so later commits are not blocked by surprise auth issues.
@@ -146,13 +160,15 @@ Confirmed read/write access to the intended GitHub repository from this environm
 
 **Execution Notes:**
 
--
+- `origin` → `github.com/chris-lej/poke-auto` (HTTPS); read/write verified via successful `git fetch origin` and prior pushes to `origin/master`.
+- Working branch: **`master`** (tracks `origin/master`), aligned with T00 readiness packet (long-lived primary branch).
+- Repository is **`poke-auto`** / `chris-lej/poke-auto`, not the default name `pokemon-restock-notifier`.
 
 ---
 
 ### T02 — Create repository operating files
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 A small set of repo-level files prevents accidental commits of secrets and local artifacts, and gives humans a fast on-ramp. This keeps maintenance low for a personal tool.
@@ -185,13 +201,14 @@ Repository hygiene files exist: ignore rules for Node, env files, local database
 
 **Execution Notes:**
 
--
+- Root `.gitignore`: Node, `.env`, `data/*.db` / sqlite, Playwright reports, `dist/`, logs, OS junk.
+- `.env.example`: **comma-separated** `PRODUCT_URLS` and `DISCOVERY_SEED_URLS` (documented for T05).
 
 ---
 
 ### T03 — Bootstrap Node.js and TypeScript project
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 The stack is Node.js + TypeScript + Playwright. This task establishes package metadata, TypeScript compilation, and scripts so subsequent tasks add code in a consistent toolchain.
@@ -227,13 +244,15 @@ A minimal `package.json`, TypeScript config, and installable dependencies (inclu
 
 **Execution Notes:**
 
--
+- `package.json`: npm, `type: module`, Node ≥20, scripts `build` / `start` / `typecheck`, dependency `playwright@1.59.1`, dev `typescript` + `@types/node`.
+- `tsconfig.json`: `strict`, `outDir` `dist`, `rootDir` `src`, NodeNext modules.
+- `.nvmrc`: `20`. After install, run `npx playwright install` for browsers when needed.
 
 ---
 
 ### T04 — Create folder structure
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Clear folders reduce coupling and make autonomous edits safer. The structure should reflect boundaries: config, persistence, browser, domain, notifications, orchestration.
@@ -266,13 +285,13 @@ A documented src layout exists (directories and placeholder `index`/barrel files
 
 **Execution Notes:**
 
--
+- Created `src/config`, `src/db`, `src/domain`, `src/browser`, `src/evaluators`, `src/notifications`, `src/workers`, `src/app` with minimal placeholder modules; DB file path remains `./data/restock.db` (created by app in T06).
 
 ---
 
 ### T05 — Implement typed configuration and validation
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Scattered `process.env` reads become inconsistent and leak partial failures. Centralized, validated configuration fails fast at startup with understandable errors — critical for unattended runs.
@@ -308,7 +327,14 @@ A single configuration module loads from environment variables, validates types 
 
 **Execution Notes:**
 
--
+- Implemented `src/config/loadConfig.ts` + `src/config/index.ts`: `loadConfig()` / `getConfig()`, typed `AppConfig`.
+- Production path requires `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and at least one URL in comma-separated `PRODUCT_URLS`.
+- `DRY_RUN=true` relaxes Telegram and product URL requirements for tooling.
+- Defaults: `DATABASE_PATH=./data/restock.db`, `POLL_INTERVAL_SECONDS=300`, `DISCOVERY_ENABLED=false`; discovery on requires non-empty `DISCOVERY_SEED_URLS`.
+- No `process.env` reads outside this module; secrets are not logged.
+- `LOG_LEVEL`: `debug` | `info` | `warn` | `error` (default `info`).
+- `ALERT_DEBOUNCE_SECONDS`: non-negative integer (default `0`) — used by alert decision in T13+.
+- `RETRY_MAX_ATTEMPTS` (default `3`), `RETRY_BASE_DELAY_MS` (default `1000`), `RETRY_EXPONENTIAL` (default `true`) — navigation + Telegram (T18).
 
 ---
 
@@ -316,7 +342,7 @@ A single configuration module loads from environment variables, validates types 
 
 ### T06 — Implement SQLite initialization and schema
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 SQLite gives durable state across restarts without operational overhead. The schema must support current status, history for debugging, and idempotent monitoring without SKU-level modeling.
@@ -354,13 +380,15 @@ Database initialization creates a file at the configured path (creating parent d
 
 **Execution Notes:**
 
--
+- Library: **`better-sqlite3`** (synchronous API, native addon, simple for a local single-process poller).
+- `initDatabase(path)`: creates parent dirs, enables WAL + foreign keys, runs `CREATE TABLE IF NOT EXISTS` + indexes (`status_history` by `product_id` and `(product_id, observed_at DESC)`).
+- Tables: `products` (id, url UNIQUE, title, created_at, updated_at), `product_status` (1:1 FK to products), `status_history` (append-only).
 
 ---
 
 ### T07 — Implement repository layer
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 SQL scattered through workers becomes error-prone. A thin repository layer keeps persistence operations explicit and testable.
@@ -394,13 +422,15 @@ Functions or a small class group all reads/writes for products, current status, 
 
 **Execution Notes:**
 
--
+- `createProductRepository(db)` in `src/db/repository.ts`: `upsertProductByUrl`, `getAllProducts`, `getProductStatus`, `recordStatusSnapshot` (transaction: history insert + `product_status` upsert), `setLastAlertedAt`.
+- Row types in `src/db/types.ts`; `src/db/index.ts` re-exports init + repository + types.
+- App bootstrap (`main.ts`) opens DB via `initDatabase` from config path only; no other module opens connections yet.
 
 ---
 
 ### T08 — Implement logging and utility helpers
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Phone-driven supervision depends on readable logs. Small helpers for timestamps, structured one-line logs, and error wrapping reduce noise and avoid leaking secrets.
@@ -433,13 +463,15 @@ A minimal logging utility used across services with levels (info/warn/error) and
 
 **Execution Notes:**
 
--
+- `src/util/logger.ts`: `createLogger` / `getLogger()` with levels from `LOG_LEVEL` in config (default `info`); ISO timestamp + JSON meta; `redactSecrets` strips bot token substring and `bot…` patterns; never dumps env.
+- `sleep`, `withRetry` (base + optional exponential backoff), `nowIso`, `errorMessage` in `src/util/`.
+- `main.ts` uses `getLogger()` instead of raw `console` (bootstrap only).
 
 ---
 
 ### T09 — Implement domain types and normalized status model
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 A small domain model keeps “what we think stock is” consistent between evaluator, DB, and alerts. MVP avoids SKU granularity — URL-level is enough.
@@ -472,13 +504,14 @@ Shared TypeScript types/enums for normalized stock states (e.g. `in_stock`, `out
 
 **Execution Notes:**
 
--
+- `NormalizedStockStatus` union + `NORMALIZED_STOCK_STATUSES` + `isNormalizedStockStatus` in `src/domain/stockStatus.ts` (brief comment on each state).
+- `PageEvaluation` in `src/domain/pageEvaluation.ts`; barrel `src/domain/index.ts`.
 
 ---
 
 ### T10 — Implement Playwright browser service
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Pokémon Center pages are dynamic; Playwright provides a reliable browser context. Centralizing launch, context, timeouts, and teardown avoids leaks during scheduled runs.
@@ -512,13 +545,14 @@ A reusable service can open a browser, navigate to a URL, return page content or
 
 **Execution Notes:**
 
--
+- `BrowserService` in `src/browser/browserService.ts`: `ensureBrowser`, `withPage(fn)` (always closes context), `close()`.
+- Chromium, desktop user-agent string, default navigation timeout 60s, `headless` from `PLAYWRIGHT_HEADED` / config.
 
 ---
 
 ### T11 — Implement Pokémon Center product page evaluator
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Stock detection must be simple and robust: prefer coarse signals like “Add to Cart” vs “Sold Out” over fragile CSS selectors that break weekly. Returning a hash supports detecting silent page changes.
@@ -554,7 +588,7 @@ Given a product URL and a Playwright page, return a `PageEvaluation` with normal
 
 **Execution Notes:**
 
--
+- `evaluatePokemonCenterProductPage(page)` in `src/evaluators/pokemonCenterProduct.ts`: waits for `domcontentloaded`, reads `body` inner text; `evaluatePokemonCenterFromBodyText` shares the same rules for fixtures/tests; `pageHash` = sha256 of canonical snippet (comment explains vs full HTML). `npm test` runs fixture assertions on compiled output.
 
 ---
 
@@ -562,7 +596,7 @@ Given a product URL and a Playwright page, return a `PageEvaluation` with normal
 
 ### T12 — Implement Telegram notification service
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Telegram is the MVP alert channel. A dedicated service isolates HTTP calls, formatting, and failure handling from monitoring logic.
@@ -596,13 +630,14 @@ Send a formatted message to the configured chat using Bot API via `fetch` or min
 
 **Execution Notes:**
 
--
+- `createTelegramNotifier(config, log)` in `src/notifications/telegram.ts`: `sendAlert`, `sendStockAlert` (URL, status, reason, ISO time); POST JSON to `sendMessage` with **retry** on network errors and HTTP 429/5xx (`TelegramSendError`, `shouldRetry`); errors throw with redacted body snippet — **never** log full API URL (token).
+- Harness: `npm run telegram:test` → `dist/scripts/telegramTest.js` (requires real `.env` / env vars; not run in CI).
 
 ---
 
 ### T13 — Implement alert decision logic
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Alert fatigue breaks trust. Alerts should fire only on meaningful transitions (e.g. `out_of_stock` → `in_stock` or `unknown` → `in_stock` per agreed policy), and duplicates should be suppressed using persisted state.
@@ -636,13 +671,13 @@ Pure function or small service that, given previous normalized status (nullable 
 
 **Execution Notes:**
 
--
+- `decideAlert` in `src/domain/alertDecision.ts`: alert only when `evaluation.status === in_stock` and prior is not `in_stock` (including first run); `unknown`/`blocked`/`out_of_stock` → `in_stock` all alert. Optional `ALERT_DEBOUNCE_SECONDS` suppresses repeat in-stock alerts using `last_alerted_at`. Table tests: `tests/alert-decision.test.mjs`.
 
 ---
 
 ### T14 — Implement monitor worker
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 The monitor worker ties together browser, evaluator, persistence, and alert decisioning for each product URL on each tick.
@@ -678,13 +713,13 @@ For each product: fetch page, evaluate, write history + current status, invoke T
 
 **Execution Notes:**
 
--
+- `runMonitorTick` in `src/workers/monitorWorker.ts`: loads all DB products, `page.goto` + `evaluatePokemonCenterProductPage` inside `withPage`. If status+reason+hash unchanged vs `product_status`, only `touchLastChecked` (no duplicate history). Else `recordStatusSnapshot` then `decideAlert`; on send failure logs error and **does not** call `setLastAlertedAt`. Dry run / no Telegram: logs “would send” and skips send. Per-product try/catch.
 
 ---
 
 ### T15 — Implement product seeding from config
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Products must exist in SQLite before monitoring loops are meaningful. Seeding from env keeps MVP simple without a UI.
@@ -718,13 +753,13 @@ On startup (or explicit command), upsert all configured product URLs into `produ
 
 **Execution Notes:**
 
--
+- `seedProductsFromConfig` in `src/workers/seedProducts.ts`: upserts each `config.productUrls` URL; **does not** delete rows removed from env (documented in file comment).
 
 ---
 
 ### T16 — Implement app entrypoint and scheduler
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Local-first execution needs a single command that runs forever on a schedule (or cron-friendly single-shot mode if chosen — pick one primary model and document).
@@ -758,13 +793,14 @@ Running one documented command starts the monitor loop at the configured interva
 
 **Execution Notes:**
 
--
+- `src/app/main.ts`: `initDatabase` → `runMonitorTick` loop with **interval = poll interval minus tick duration** (drift acceptable); sleep in 1s slices for responsive SIGINT/SIGTERM; `browser.close()` + `db.close()` in `finally`. Scripts: `npm start`, `npm run dev` (build+start).
+- Logger uses explicit `createLogger` from config (not `getLogger` singleton) so log level matches startup config.
 
 ---
 
 ### T17 — Implement optional discovery worker
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Discovery helps find candidate URLs from listing pages **after** core monitoring is trustworthy. This is optional and off by default to avoid scope creep before the MVP path works.
@@ -798,13 +834,13 @@ If and only if discovery is enabled in config **and** Phase 3 core monitoring ta
 
 **Execution Notes:**
 
--
+- `src/workers/discovery.ts`: `runDiscoveryPass` runs when `DISCOVERY_ENABLED` and config has seeds (validated at startup). Each seed: Playwright `goto` + `collectProductLinksFromPage` (all `a[href]`, resolve to absolute, filter `*.pokemoncenter.com` with `/product/` or `/p/<slug>/` path pattern), dedupe, `upsertProductByUrl`. Called at the **start of each monitor tick** in `main.ts` before `runMonitorTick`. No Telegram. Unit tests: `isPokemonCenterProductUrl` in `tests/discovery-urls.test.mjs`.
 
 ---
 
 ### T18 — Add resilience and retry behavior
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Transient network or site blips should not permanently derail a personal poller. Bounded retries keep the system self-healing without complex infra.
@@ -837,13 +873,18 @@ Consistent retry policy for navigations and Telegram sends (if not already adequ
 
 **Execution Notes:**
 
--
+- `withRetry` extended with optional `shouldRetry`; `retryOptionsFromConfig` + `withConfiguredRetry` in `src/util/retryPolicy.ts` (warns on each retry with label).
+- Config: `RETRY_MAX_ATTEMPTS` (default 3), `RETRY_BASE_DELAY_MS` (default 1000), `RETRY_EXPONENTIAL` (default true).
+- `page.goto` in monitor + discovery wrapped with `withConfiguredRetry`.
+- Telegram: `createTelegramNotifier(config, log)` uses `withRetry` + `TelegramSendError` with `httpStatus`; retries network errors and HTTP 429/5xx only (`shouldRetry`).
+- After navigation retries exhausted (or browser missing): `recordStatusSnapshot` with `unknown` and reason `navigation_failed_after_retries` or `browser_not_installed` (no partial corrupt state).
+- Tests: `tests/retry.test.mjs`.
 
 ---
 
 ### T19 — Expand README with setup and usage
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Future agents and humans need a single setup path: install, env, run, troubleshooting — without a dashboard.
@@ -878,13 +919,13 @@ README includes end-to-end instructions aligned with actual scripts and env vars
 
 **Execution Notes:**
 
--
+- Root `README.md`: prerequisites, install, `.env` table aligned with `.env.example`, `npm start` / `dev` / `test` / `telegram:test`, first-run behavior, troubleshooting (Telegram, Playwright), links to `PROJECT.md` and `TASKS.md`.
 
 ---
 
 ### T20 — Run smoke validation and fix obvious issues
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 The MVP is “done” when a realistic smoke path works: seed, poll once, persist, and optionally send a test alert in a controlled manner.
@@ -920,7 +961,10 @@ Execute an end-to-end smoke checklist, fix obvious defects found, and record out
 
 **Execution Notes:**
 
--
+- `npm run typecheck` and `npm test` — green (evaluator fixtures, alert decision, URL filter, retry).
+- Dry-run smoke: `DRY_RUN=true DATABASE_PATH=/tmp/... PRODUCT_URLS=https://example.com` + `timeout` + SIGTERM — process exits cleanly; SQLite shows `products` row and `status_history` / `product_status` updated (`unknown` / `no_commerce_signals` for example.com after `npx playwright install chromium` in this environment).
+- Live Pokémon Center and real Telegram Bot API not run in automated smoke (external network/credentials); use `npm run telegram:test` locally with owner consent.
+- Fix during smoke: distinguish missing Playwright browser (`browser_not_installed` reason) vs post-goto failures; log line generalized to “monitor failed”.
 
 ---
 
