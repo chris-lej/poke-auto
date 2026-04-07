@@ -339,7 +339,7 @@ A single configuration module loads from environment variables, validates types 
 
 ### T06 — Implement SQLite initialization and schema
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 SQLite gives durable state across restarts without operational overhead. The schema must support current status, history for debugging, and idempotent monitoring without SKU-level modeling.
@@ -377,13 +377,15 @@ Database initialization creates a file at the configured path (creating parent d
 
 **Execution Notes:**
 
--
+- Library: **`better-sqlite3`** (synchronous API, native addon, simple for a local single-process poller).
+- `initDatabase(path)`: creates parent dirs, enables WAL + foreign keys, runs `CREATE TABLE IF NOT EXISTS` + indexes (`status_history` by `product_id` and `(product_id, observed_at DESC)`).
+- Tables: `products` (id, url UNIQUE, title, created_at, updated_at), `product_status` (1:1 FK to products), `status_history` (append-only).
 
 ---
 
 ### T07 — Implement repository layer
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 SQL scattered through workers becomes error-prone. A thin repository layer keeps persistence operations explicit and testable.
@@ -417,7 +419,9 @@ Functions or a small class group all reads/writes for products, current status, 
 
 **Execution Notes:**
 
--
+- `createProductRepository(db)` in `src/db/repository.ts`: `upsertProductByUrl`, `getAllProducts`, `getProductStatus`, `recordStatusSnapshot` (transaction: history insert + `product_status` upsert), `setLastAlertedAt`.
+- Row types in `src/db/types.ts`; `src/db/index.ts` re-exports init + repository + types.
+- App bootstrap (`main.ts`) opens DB via `initDatabase` from config path only; no other module opens connections yet.
 
 ---
 
