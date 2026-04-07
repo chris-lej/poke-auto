@@ -1,1 +1,3 @@
-/** Product page evaluation (T11+). */
+/** Product page evaluation. */
+
+export { evaluatePokemonCenterProductPage } from "./pokemonCenterProduct.js";

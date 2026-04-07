@@ -1,20 +1,23 @@
-import { loadConfig } from "../config/index.js";
+import { getConfig } from "../config/index.js";
 import { createProductRepository, initDatabase } from "../db/index.js";
+import { getLogger } from "../util/index.js";
 
-const config = loadConfig();
+const config = getConfig();
+const log = getLogger();
 const db = initDatabase(config.databasePath);
 
 try {
   if (config.dryRun) {
-    console.log("poke-auto: dry run — Telegram and product URL requirements skipped");
+    log.info("dry run — Telegram and product URL requirements skipped");
   } else {
-    console.log(
-      `poke-auto: ${config.productUrls.length} product URL(s), poll every ${config.pollIntervalSeconds}s`,
-    );
+    log.info("monitor config loaded", {
+      productCount: config.productUrls.length,
+      pollIntervalSeconds: config.pollIntervalSeconds,
+    });
   }
   const repo = createProductRepository(db);
   const products = repo.getAllProducts();
-  console.log(`poke-auto: database OK (${products.length} product row(s))`);
+  log.info("database ready", { productRows: products.length });
 } finally {
   db.close();
 }

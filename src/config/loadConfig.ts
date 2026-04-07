@@ -3,6 +3,8 @@
  * `loadConfig` / `getConfig` from this module only — not `process.env` elsewhere.
  */
 
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
 export type AppConfig = {
   /** When true, Telegram and product URL requirements are relaxed for local/tooling runs. */
   dryRun: boolean;
@@ -14,6 +16,7 @@ export type AppConfig = {
   discoveryEnabled: boolean;
   discoverySeedUrls: string[];
   playwrightHeaded: boolean;
+  logLevel: LogLevel;
 };
 
 function parseBool(raw: string | undefined, defaultValue: boolean): boolean {
@@ -46,6 +49,19 @@ function requireEnv(name: string, value: string | undefined): string {
   return value.trim();
 }
 
+const LOG_LEVELS: LogLevel[] = ["debug", "info", "warn", "error"];
+
+function parseLogLevel(raw: string | undefined, defaultLevel: LogLevel): LogLevel {
+  if (raw === undefined || raw.trim() === "") return defaultLevel;
+  const v = raw.trim().toLowerCase() as LogLevel;
+  if (!LOG_LEVELS.includes(v)) {
+    throw new Error(
+      `Invalid LOG_LEVEL: expected one of ${LOG_LEVELS.join(", ")}, got "${raw}"`,
+    );
+  }
+  return v;
+}
+
 /**
  * Loads and validates configuration from the environment.
  * @throws Error with a clear message when validation fails.
@@ -62,6 +78,7 @@ export function loadConfig(): AppConfig {
   );
   const discoveryEnabled = parseBool(process.env.DISCOVERY_ENABLED, false);
   const playwrightHeaded = parseBool(process.env.PLAYWRIGHT_HEADED, false);
+  const logLevel = parseLogLevel(process.env.LOG_LEVEL, "info");
 
   const productUrls = parseCommaSeparatedList(process.env.PRODUCT_URLS);
   const discoverySeedUrls = parseCommaSeparatedList(process.env.DISCOVERY_SEED_URLS);
@@ -95,6 +112,7 @@ export function loadConfig(): AppConfig {
     discoveryEnabled,
     discoverySeedUrls,
     playwrightHeaded,
+    logLevel,
   };
 }
 

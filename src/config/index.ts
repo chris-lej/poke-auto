@@ -1,1 +1,6 @@
-export { getConfig, loadConfig, type AppConfig } from "./loadConfig.js";
+export {
+  getConfig,
+  loadConfig,
+  type AppConfig,
+  type LogLevel,
+} from "./loadConfig.js";

@@ -332,6 +332,7 @@ A single configuration module loads from environment variables, validates types 
 - `DRY_RUN=true` relaxes Telegram and product URL requirements for tooling.
 - Defaults: `DATABASE_PATH=./data/restock.db`, `POLL_INTERVAL_SECONDS=300`, `DISCOVERY_ENABLED=false`; discovery on requires non-empty `DISCOVERY_SEED_URLS`.
 - No `process.env` reads outside this module; secrets are not logged.
+- `LOG_LEVEL`: `debug` | `info` | `warn` | `error` (default `info`).
 
 ---
 
@@ -427,7 +428,7 @@ Functions or a small class group all reads/writes for products, current status, 
 
 ### T08 — Implement logging and utility helpers
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Phone-driven supervision depends on readable logs. Small helpers for timestamps, structured one-line logs, and error wrapping reduce noise and avoid leaking secrets.
@@ -460,13 +461,15 @@ A minimal logging utility used across services with levels (info/warn/error) and
 
 **Execution Notes:**
 
--
+- `src/util/logger.ts`: `createLogger` / `getLogger()` with levels from `LOG_LEVEL` in config (default `info`); ISO timestamp + JSON meta; `redactSecrets` strips bot token substring and `bot…` patterns; never dumps env.
+- `sleep`, `withRetry` (base + optional exponential backoff), `nowIso`, `errorMessage` in `src/util/`.
+- `main.ts` uses `getLogger()` instead of raw `console` (bootstrap only).
 
 ---
 
 ### T09 — Implement domain types and normalized status model
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 A small domain model keeps “what we think stock is” consistent between evaluator, DB, and alerts. MVP avoids SKU granularity — URL-level is enough.
@@ -499,13 +502,14 @@ Shared TypeScript types/enums for normalized stock states (e.g. `in_stock`, `out
 
 **Execution Notes:**
 
--
+- `NormalizedStockStatus` union + `NORMALIZED_STOCK_STATUSES` + `isNormalizedStockStatus` in `src/domain/stockStatus.ts` (brief comment on each state).
+- `PageEvaluation` in `src/domain/pageEvaluation.ts`; barrel `src/domain/index.ts`.
 
 ---
 
 ### T10 — Implement Playwright browser service
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Pokémon Center pages are dynamic; Playwright provides a reliable browser context. Centralizing launch, context, timeouts, and teardown avoids leaks during scheduled runs.
@@ -539,13 +543,14 @@ A reusable service can open a browser, navigate to a URL, return page content or
 
 **Execution Notes:**
 
--
+- `BrowserService` in `src/browser/browserService.ts`: `ensureBrowser`, `withPage(fn)` (always closes context), `close()`.
+- Chromium, desktop user-agent string, default navigation timeout 60s, `headless` from `PLAYWRIGHT_HEADED` / config.
 
 ---
 
 ### T11 — Implement Pokémon Center product page evaluator
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Stock detection must be simple and robust: prefer coarse signals like “Add to Cart” vs “Sold Out” over fragile CSS selectors that break weekly. Returning a hash supports detecting silent page changes.
@@ -581,7 +586,7 @@ Given a product URL and a Playwright page, return a `PageEvaluation` with normal
 
 **Execution Notes:**
 
--
+- `evaluatePokemonCenterProductPage(page)` in `src/evaluators/pokemonCenterProduct.ts`: waits for `domcontentloaded`, reads trimmed `body` inner text (capped length), classifies via simple sold-out vs add-to-cart string hints, `unknown` on conflict/missing signals, `blocked` on obvious gate phrases; `pageHash` = sha256 of canonical snippet (comment explains vs full HTML).
 
 ---
 

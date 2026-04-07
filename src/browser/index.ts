@@ -1,1 +1,3 @@
-/** Playwright browser lifecycle (T10+). */
+/** Playwright browser lifecycle. */
+
+export { BrowserService } from "./browserService.js";
