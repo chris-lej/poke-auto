@@ -115,7 +115,7 @@ Produce a single “readiness packet” (in `Execution Notes` and/or a non-commi
 | **Telegram chat ID** | **Pending** — store only via env |
 | **Product URLs** | **Pending** — MVP needs at least one URL in env before meaningful monitoring; default empty until supplied |
 | **Optional discovery seed URLs** | None (default) |
-| **Discovery enabled** | **false** — remains off until Phase 3 optional work (per task default) |
+| **Discovery enabled** | **false** by default; set `DISCOVERY_ENABLED=true` + `DISCOVERY_SEED_URLS` to scrape listing pages each tick (T17) |
 | **Preferred git branch for ongoing work** | **`master`** — long-lived primary branch for ongoing work and agent pushes; `main` remains on origin as historical/default unless you change default branch in GitHub settings |
 | **SQLite database file path** | `./data/restock.db` (directory to be created in later tasks) |
 
@@ -799,7 +799,7 @@ Running one documented command starts the monitor loop at the configured interva
 
 ### T17 — Implement optional discovery worker
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Discovery helps find candidate URLs from listing pages **after** core monitoring is trustworthy. This is optional and off by default to avoid scope creep before the MVP path works.
@@ -833,7 +833,7 @@ If and only if discovery is enabled in config **and** Phase 3 core monitoring ta
 
 **Execution Notes:**
 
--
+- `src/workers/discovery.ts`: `runDiscoveryPass` runs when `DISCOVERY_ENABLED` and config has seeds (validated at startup). Each seed: Playwright `goto` + `collectProductLinksFromPage` (all `a[href]`, resolve to absolute, filter `*.pokemoncenter.com` with `/product/` or `/p/<slug>/` path pattern), dedupe, `upsertProductByUrl`. Called at the **start of each monitor tick** in `main.ts` before `runMonitorTick`. No Telegram. Unit tests: `isPokemonCenterProductUrl` in `tests/discovery-urls.test.mjs`.
 
 ---
 

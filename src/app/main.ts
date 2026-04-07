@@ -2,7 +2,11 @@ import { getConfig } from "../config/index.js";
 import { createProductRepository, initDatabase } from "../db/index.js";
 import { BrowserService } from "../browser/index.js";
 import { createTelegramNotifier } from "../notifications/index.js";
-import { runMonitorTick, seedProductsFromConfig } from "../workers/index.js";
+import {
+  runDiscoveryPass,
+  runMonitorTick,
+  seedProductsFromConfig,
+} from "../workers/index.js";
 import { createLogger, sleep } from "../util/index.js";
 
 const config = getConfig();
@@ -16,6 +20,11 @@ const telegram = config.dryRun ? null : createTelegramNotifier(config);
 let shuttingDown = false;
 
 async function tick(): Promise<void> {
+  if (config.discoveryEnabled) {
+    log.info("discovery pass start");
+    await runDiscoveryPass({ repo, browser, config, log });
+    log.info("discovery pass done");
+  }
   log.info("monitor tick start");
   await runMonitorTick({ repo, browser, config, log, telegram });
   log.info("monitor tick done");
@@ -56,6 +65,7 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 try {
   log.info("poke-auto starting", {
     dryRun: config.dryRun,
+    discoveryEnabled: config.discoveryEnabled,
     pollIntervalSeconds: config.pollIntervalSeconds,
     databasePath: config.databasePath,
   });
