@@ -334,6 +334,7 @@ A single configuration module loads from environment variables, validates types 
 - No `process.env` reads outside this module; secrets are not logged.
 - `LOG_LEVEL`: `debug` | `info` | `warn` | `error` (default `info`).
 - `ALERT_DEBOUNCE_SECONDS`: non-negative integer (default `0`) — used by alert decision in T13+.
+- `RETRY_MAX_ATTEMPTS` (default `3`), `RETRY_BASE_DELAY_MS` (default `1000`), `RETRY_EXPONENTIAL` (default `true`) — navigation + Telegram (T18).
 
 ---
 
@@ -629,7 +630,7 @@ Send a formatted message to the configured chat using Bot API via `fetch` or min
 
 **Execution Notes:**
 
-- `createTelegramNotifier(config)` in `src/notifications/telegram.ts`: `sendAlert`, `sendStockAlert` (URL, status, reason, ISO time); POST JSON to `sendMessage`; errors throw with redacted body snippet — **never** log full API URL (token).
+- `createTelegramNotifier(config, log)` in `src/notifications/telegram.ts`: `sendAlert`, `sendStockAlert` (URL, status, reason, ISO time); POST JSON to `sendMessage` with **retry** on network errors and HTTP 429/5xx (`TelegramSendError`, `shouldRetry`); errors throw with redacted body snippet — **never** log full API URL (token).
 - Harness: `npm run telegram:test` → `dist/scripts/telegramTest.js` (requires real `.env` / env vars; not run in CI).
 
 ---
@@ -839,7 +840,7 @@ If and only if discovery is enabled in config **and** Phase 3 core monitoring ta
 
 ### T18 — Add resilience and retry behavior
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Transient network or site blips should not permanently derail a personal poller. Bounded retries keep the system self-healing without complex infra.
@@ -872,13 +873,18 @@ Consistent retry policy for navigations and Telegram sends (if not already adequ
 
 **Execution Notes:**
 
--
+- `withRetry` extended with optional `shouldRetry`; `retryOptionsFromConfig` + `withConfiguredRetry` in `src/util/retryPolicy.ts` (warns on each retry with label).
+- Config: `RETRY_MAX_ATTEMPTS` (default 3), `RETRY_BASE_DELAY_MS` (default 1000), `RETRY_EXPONENTIAL` (default true).
+- `page.goto` in monitor + discovery wrapped with `withConfiguredRetry`.
+- Telegram: `createTelegramNotifier(config, log)` uses `withRetry` + `TelegramSendError` with `httpStatus`; retries network errors and HTTP 429/5xx only (`shouldRetry`).
+- After navigation retries exhausted (or browser missing): `recordStatusSnapshot` with `unknown` and reason `navigation_failed_after_retries` or `browser_not_installed` (no partial corrupt state).
+- Tests: `tests/retry.test.mjs`.
 
 ---
 
 ### T19 — Expand README with setup and usage
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 Future agents and humans need a single setup path: install, env, run, troubleshooting — without a dashboard.
@@ -913,13 +919,13 @@ README includes end-to-end instructions aligned with actual scripts and env vars
 
 **Execution Notes:**
 
--
+- Root `README.md`: prerequisites, install, `.env` table aligned with `.env.example`, `npm start` / `dev` / `test` / `telegram:test`, first-run behavior, troubleshooting (Telegram, Playwright), links to `PROJECT.md` and `TASKS.md`.
 
 ---
 
 ### T20 — Run smoke validation and fix obvious issues
 
-**Status:** TODO
+**Status:** DONE
 
 **Intent:**  
 The MVP is “done” when a realistic smoke path works: seed, poll once, persist, and optionally send a test alert in a controlled manner.
@@ -955,7 +961,10 @@ Execute an end-to-end smoke checklist, fix obvious defects found, and record out
 
 **Execution Notes:**
 
--
+- `npm run typecheck` and `npm test` — green (evaluator fixtures, alert decision, URL filter, retry).
+- Dry-run smoke: `DRY_RUN=true DATABASE_PATH=/tmp/... PRODUCT_URLS=https://example.com` + `timeout` + SIGTERM — process exits cleanly; SQLite shows `products` row and `status_history` / `product_status` updated (`unknown` / `no_commerce_signals` for example.com after `npx playwright install chromium` in this environment).
+- Live Pokémon Center and real Telegram Bot API not run in automated smoke (external network/credentials); use `npm run telegram:test` locally with owner consent.
+- Fix during smoke: distinguish missing Playwright browser (`browser_not_installed` reason) vs post-goto failures; log line generalized to “monitor failed”.
 
 ---
 

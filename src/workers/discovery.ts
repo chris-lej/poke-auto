@@ -2,7 +2,7 @@ import type { AppConfig } from "../config/loadConfig.js";
 import type { ProductRepository } from "../db/repository.js";
 import type { BrowserService } from "../browser/index.js";
 import type { Logger } from "../util/index.js";
-import { errorMessage } from "../util/index.js";
+import { errorMessage, withConfiguredRetry } from "../util/index.js";
 
 /**
  * Discovery is **off** unless `DISCOVERY_ENABLED` is true and seed URLs are set in config.
@@ -82,7 +82,9 @@ export async function runDiscoveryPass(input: {
   for (const seedUrl of config.discoverySeedUrls) {
     try {
       const foundForSeed = await browser.withPage(async (page) => {
-        await page.goto(seedUrl, { waitUntil: "domcontentloaded" });
+        await withConfiguredRetry(config, log, `discovery goto ${seedUrl}`, async () => {
+          await page.goto(seedUrl, { waitUntil: "domcontentloaded" });
+        });
         return collectProductLinksFromPage(page);
       });
       seedsVisited++;

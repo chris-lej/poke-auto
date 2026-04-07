@@ -15,7 +15,7 @@ const log = createLogger(config.logLevel, config.telegramBotToken || undefined);
 const db = initDatabase(config.databasePath);
 const repo = createProductRepository(db);
 const browser = new BrowserService(config);
-const telegram = config.dryRun ? null : createTelegramNotifier(config);
+const telegram = config.dryRun ? null : createTelegramNotifier(config, log);
 
 let shuttingDown = false;
 

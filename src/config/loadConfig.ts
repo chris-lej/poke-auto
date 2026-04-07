@@ -22,6 +22,10 @@ export type AppConfig = {
    * for this many seconds (reduces hash/signal flip-flop noise). 0 = off.
    */
   alertDebounceSeconds: number;
+  /** Bounded retries for Playwright navigation and Telegram HTTP (T18). */
+  retryMaxAttempts: number;
+  retryBaseDelayMs: number;
+  retryExponential: boolean;
 };
 
 function parseBool(raw: string | undefined, defaultValue: boolean): boolean {
@@ -98,6 +102,17 @@ export function loadConfig(): AppConfig {
     "ALERT_DEBOUNCE_SECONDS",
     0,
   );
+  const retryMaxAttempts = parsePositiveInt(
+    process.env.RETRY_MAX_ATTEMPTS,
+    "RETRY_MAX_ATTEMPTS",
+    3,
+  );
+  const retryBaseDelayMs = parsePositiveInt(
+    process.env.RETRY_BASE_DELAY_MS,
+    "RETRY_BASE_DELAY_MS",
+    1000,
+  );
+  const retryExponential = parseBool(process.env.RETRY_EXPONENTIAL, true);
 
   const productUrls = parseCommaSeparatedList(process.env.PRODUCT_URLS);
   const discoverySeedUrls = parseCommaSeparatedList(process.env.DISCOVERY_SEED_URLS);
@@ -133,6 +148,9 @@ export function loadConfig(): AppConfig {
     playwrightHeaded,
     logLevel,
     alertDebounceSeconds,
+    retryMaxAttempts,
+    retryBaseDelayMs,
+    retryExponential,
   };
 }
 

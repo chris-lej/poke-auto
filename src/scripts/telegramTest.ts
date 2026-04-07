@@ -6,9 +6,11 @@
 
 import { loadConfig } from "../config/index.js";
 import { createTelegramNotifier } from "../notifications/index.js";
+import { createLogger } from "../util/index.js";
 
 const config = loadConfig();
-const telegram = createTelegramNotifier(config);
+const log = createLogger(config.logLevel, config.telegramBotToken || undefined);
+const telegram = createTelegramNotifier(config, log);
 await telegram.sendAlert({
   text: "poke-auto: Telegram test message (ok to delete)",
 });

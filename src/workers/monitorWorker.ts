@@ -9,7 +9,7 @@ import { evaluatePokemonCenterProductPage } from "../evaluators/index.js";
 import { BrowserService } from "../browser/index.js";
 import type { TelegramNotifier } from "../notifications/index.js";
 import type { Logger } from "../util/index.js";
-import { errorMessage } from "../util/index.js";
+import { errorMessage, withConfiguredRetry } from "../util/index.js";
 
 function parsePriorStatus(
   raw: string | undefined,
@@ -44,10 +44,29 @@ export async function runMonitorTick(input: {
       const previousStatus = parsePriorStatus(prior?.normalized_status);
       const lastAlertedAt = parseOptionalIsoDate(prior?.last_alerted_at ?? null);
 
-      const evaluation = await browser.withPage(async (page) => {
-        await page.goto(p.url, { waitUntil: "domcontentloaded" });
-        return evaluatePokemonCenterProductPage(page);
-      });
+      let evaluation;
+      try {
+        evaluation = await browser.withPage(async (page) => {
+          await withConfiguredRetry(config, log, `goto ${p.url}`, async () => {
+            await page.goto(p.url, { waitUntil: "domcontentloaded" });
+          });
+          return evaluatePokemonCenterProductPage(page);
+        });
+      } catch (e) {
+        const msg = errorMessage(e);
+        log.error(`monitor failed for product ${p.id} (${p.url}): ${msg}`);
+        const capturedAt = new Date();
+        const reason = msg.includes("Executable doesn't exist")
+          ? "browser_not_installed"
+          : "navigation_failed_after_retries";
+        repo.recordStatusSnapshot(p.id, {
+          normalizedStatus: "unknown",
+          reason,
+          pageHash: "",
+          observedAt: capturedAt,
+        });
+        continue;
+      }
 
       const unchanged =
         prior !== undefined &&
